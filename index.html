@@ -1,10 +1,4 @@
-<!doct
-<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
-  <button type="button" id="exportBtn">💾 Экспорт базы</button>
-  <button type="button" id="importBtn">📥 Импорт слов</button>
-  <input id="importFile" type="file" accept=".json,application/json" hidden>
-</div>
-ype html>
+<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -47,6 +41,12 @@ button.primary{background:#292522;color:white}.tiny{font-size:12px;color:#80766f
     <div><label>Как читается</label><input id="reading" placeholder="Например: [ля роб]"></div>
     <div><label>Тема</label><input id="topic" list="topics" placeholder="Одежда"><datalist id="topics"></datalist></div>
     <div><label>&nbsp;</label><button class="primary" id="addBtn" style="width:100%">＋ Добавить карточку</button></div>
+<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+  <button type="button" id="exportBtn">💾 Экспорт базы</button>
+  <button type="button" id="importBtn">📥 Импорт слов</button>
+  <input id="importFile" type="file" accept=".json,application/json" hidden>
+</div>
+
   </div>
   <div id="msg"></div>
 </section>
@@ -99,6 +99,7 @@ for(const seed of DEFAULT){
 }
 localStorage.setItem("frcards_v3",JSON.stringify(cards));
 let current=null, hard=false;
+const $=id=>document.getElementById(id);
 function save(){localStorage.setItem("frcards_v3",JSON.stringify(cards));refresh();}
 function stripArticle(s){return s.trim().replace(/^(le|la|les|l['’])\s*/i,"").trim();}
 function hasArticle(s){return /^(le|la|les)\s+|^l['’]/i.test(s.trim());}
@@ -195,8 +196,8 @@ if(importFile) importFile.addEventListener("change",async()=>{
       keys.add(key); added++;
     }
     localStorage.setItem("frcards_v3",JSON.stringify(cards));
-    if(typeof fillTopics==="function") fillTopics();
-    else if(typeof render==="function") render();
+    refresh();
+    next();
     alert("Добавлено новых карточек: "+added);
   }catch(e){ alert("Не удалось импортировать файл. Нужен JSON со списком карточек."); }
   importFile.value="";
