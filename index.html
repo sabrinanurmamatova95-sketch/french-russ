@@ -1,4 +1,10 @@
-<!doctype html>
+<!doct
+<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+  <button type="button" id="exportBtn">💾 Экспорт базы</button>
+  <button type="button" id="importBtn">📥 Импорт слов</button>
+  <input id="importFile" type="file" accept=".json,application/json" hidden>
+</div>
+ype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -75,13 +81,24 @@ const LEXICON = {
 "écharpe":"l’","épaule":"l’","oreille":"l’","œil":"l’",
 "chaussures":"les","baskets":"les","gants":"les","sandales":"les","lunettes":"les","chaussettes":"les","bottes":"les","cheveux":"les","yeux":"les","lèvres":"les","dents":"les"
 };
-let cards=JSON.parse(localStorage.getItem("frcards_v3")||"null")||[];
-const existing=new Set(cards.map(c=>String(c.fr||"").toLowerCase()));
-for(const c of DEFAULT){if(!existing.has(c.fr.toLowerCase())) cards.push({...c});}
+let cards=[];
+try {
+  const saved=JSON.parse(localStorage.getItem("frcards_v3")||"[]");
+  if(Array.isArray(saved)) cards=saved;
+} catch(e) { cards=[]; }
+
+// Merge the built-in study deck into any existing user deck.
+// Existing cards keep their progress; only missing French entries are added.
+const existingKeys=new Set(cards.map(c=>String(c.fr||"").trim().toLocaleLowerCase("fr")));
+for(const seed of DEFAULT){
+  const key=String(seed.fr||"").trim().toLocaleLowerCase("fr");
+  if(!existingKeys.has(key)){
+    cards.push({...seed,known:Number(seed.known||0),missed:Number(seed.missed||0)});
+    existingKeys.add(key);
+  }
+}
 localStorage.setItem("frcards_v3",JSON.stringify(cards));
 let current=null, hard=false;
-let current=null, hard=false;
-const $=id=>document.getElementById(id);
 function save(){localStorage.setItem("frcards_v3",JSON.stringify(cards));refresh();}
 function stripArticle(s){return s.trim().replace(/^(le|la|les|l['’])\s*/i,"").trim();}
 function hasArticle(s){return /^(le|la|les)\s+|^l['’]/i.test(s.trim());}
@@ -145,5 +162,44 @@ $("speakCard").onclick=()=>{if(current)speak(current.fr)};
 $("direction").onchange=()=>{if(current)render()};$("filter").onchange=next;
 refresh();
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+
+// Backup/export and lesson import. JSON can be either an array of cards
+// or {"cards":[...]}. Duplicate French entries are skipped.
+const exportBtn=document.getElementById("exportBtn");
+const importBtn=document.getElementById("importBtn");
+const importFile=document.getElementById("importFile");
+if(exportBtn) exportBtn.addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),cards},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="mes-cartes-backup.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+if(importBtn) importBtn.addEventListener("click",()=>importFile.click());
+if(importFile) importFile.addEventListener("change",async()=>{
+  const f=importFile.files&&importFile.files[0]; if(!f) return;
+  try{
+    const parsed=JSON.parse(await f.text());
+    const incoming=Array.isArray(parsed)?parsed:(Array.isArray(parsed.cards)?parsed.cards:[]);
+    if(!incoming.length) throw new Error("Нет карточек");
+    const keys=new Set(cards.map(c=>String(c.fr||"").trim().toLocaleLowerCase("fr")));
+    let added=0;
+    for(const c of incoming){
+      if(!c || !String(c.fr||"").trim()) continue;
+      const key=String(c.fr).trim().toLocaleLowerCase("fr");
+      if(keys.has(key)) continue;
+      cards.push({
+        fr:String(c.fr).trim(), ru:String(c.ru||"").trim(),
+        reading:String(c.reading||c.pronunciation||"").trim(),
+        topic:String(c.topic||"Другое").trim(),
+        known:Number(c.known||0), missed:Number(c.missed||0)
+      });
+      keys.add(key); added++;
+    }
+    localStorage.setItem("frcards_v3",JSON.stringify(cards));
+    if(typeof fillTopics==="function") fillTopics();
+    else if(typeof render==="function") render();
+    alert("Добавлено новых карточек: "+added);
+  }catch(e){ alert("Не удалось импортировать файл. Нужен JSON со списком карточек."); }
+  importFile.value="";
+});
 </script>
 </body></html>
