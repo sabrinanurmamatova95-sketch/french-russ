@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7efe8">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Mes cartes de français</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#292522;background:#fbf8f5}
+body{margin:0;background:#fbf8f5} header{padding:22px 18px 12px;max-width:760px;margin:auto}
+h1{margin:0 0 5px;font-size:25px} .sub{color:#736a63;font-size:14px}
+main{max-width:760px;margin:auto;padding:10px 16px 80px}.panel{background:white;border:1px solid #eadfd6;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 5px 20px #5b46330d}
+label{font-size:13px;color:#665d57;display:block;margin:10px 0 5px}input,select,button{font:inherit}
+input,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd1c8;border-radius:12px;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{border:0;border-radius:12px;padding:11px 14px;background:#eee7e1;color:#292522;font-weight:650}
+button.primary{background:#292522;color:white}.tiny{font-size:12px;color:#80766f;margin-top:7px;line-height:1.4}
+.card{min-height:220px;border:1px solid #e8ddd5;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;cursor:pointer;background:#fffaf6}
+.word{font-size:31px;font-weight:750}.reading{font-size:18px;color:#786d66;margin-top:8px}.meaning{font-size:24px;margin-top:16px}.hidden{display:none}.status{padding:9px 11px;border-radius:10px;background:#f4efe9;margin-top:10px;font-size:13px}
+.bad{background:#fff0ee}.good{background:#edf8ef}.stats{font-size:14px;color:#665d57}.full{grid-column:1/-1}
+@media(max-width:540px){.row{grid-template-columns:1fr}.word{font-size:28px}}
+</style>
+</head>
+<body>
+<header><h1>Mes cartes de français 🇫🇷</h1><div class="sub">Твой словарь и карточки по темам</div></header>
+<main>
+<section class="panel">
+  <b>Добавить слово</b>
+  <label>Французское слово</label>
+  <input id="fr" placeholder="Например: robe или chaussures" autocomplete="off">
+  <div class="actions">
+    <button id="articleBtn">✨ Определить артикль</button>
+    <button id="translateBtn">🌐 Перевести</button>
+    <button id="speakInput">🔊 Произнести</button>
+    <button id="chatBtn">💬 Спросить ChatGPT</button>
+  </div>
+  <div id="articleStatus" class="tiny">Для известных слов приложение добавит le / la / l’ / les автоматически. Если слово неоднозначное — попросит проверить.</div>
+  <div class="row">
+    <div><label>Перевод</label><input id="ru" placeholder="Русский перевод"></div>
+    <div><label>Как читается</label><input id="reading" placeholder="Например: [ля роб]"></div>
+    <div><label>Тема</label><input id="topic" list="topics" placeholder="Одежда"><datalist id="topics"></datalist></div>
+    <div><label>&nbsp;</label><button class="primary" id="addBtn" style="width:100%">＋ Добавить карточку</button></div>
+  </div>
+  <div id="msg"></div>
+</section>
+
+<section class="panel">
+ <div class="row">
+  <div><label>Тема для повторения</label><select id="filter"></select></div>
+  <div><label>Направление</label><select id="direction"><option value="fr-ru">FR → RU</option><option value="ru-fr">RU → FR</option></select></div>
+ </div>
+ <div class="actions"><button id="shuffle">🔀 Новая карточка</button><button id="hardOnly">⭐ Только сложные</button></div>
+</section>
+
+<section class="panel">
+ <div id="card" class="card">
+  <div id="front" class="word">Нажми «Новая карточка»</div>
+  <div id="frontReading" class="reading"></div>
+  <div id="answer" class="hidden"><div id="back" class="meaning"></div><div id="backReading" class="reading"></div></div>
+ </div>
+ <div class="actions">
+  <button id="speakCard">🔊</button><button id="show">Показать ответ</button>
+  <button id="no">✕ Не знаю</button><button id="yes">✓ Знаю</button>
+ </div>
+ <div id="stats" class="stats"></div>
+</section>
+</main>
+<script>
+const DEFAULT = [
+ {fr:"la robe",ru:"платье",reading:"[ля роб]",topic:"Одежда"},
+ {fr:"la jupe",ru:"юбка",reading:"[ля жюп]",topic:"Одежда"},
+ {fr:"le pantalon",ru:"брюки",reading:"[лё панталон]",topic:"Одежда"},
+ {fr:"le T-shirt",ru:"футболка",reading:"[лё ти-шёрт]",topic:"Одежда"},
+ {fr:"la chemise",ru:"рубашка",reading:"[ля шёмиз]",topic:"Одежда"},
+ {fr:"le pull",ru:"свитер",reading:"[лё пюль]",topic:"Одежда"},
+ {fr:"la veste",ru:"пиджак / куртка",reading:"[ля вэст]",topic:"Одежда"},
+ {fr:"le manteau",ru:"пальто",reading:"[лё манто]",topic:"Одежда"},
+ {fr:"les chaussures",ru:"обувь / туфли",reading:"[ле шосюр]",topic:"Одежда"},
+ {fr:"les baskets",ru:"кроссовки",reading:"[ле баскэт]",topic:"Одежда"},
+ {fr:"les gants",ru:"перчатки",reading:"[ле ган]",topic:"Аксессуары"},
+ {fr:"les sandales",ru:"сандалии / босоножки",reading:"[ле сандаль]",topic:"Одежда"},
+ {fr:"le chapeau",ru:"шляпа",reading:"[лё шапо]",topic:"Аксессуары"},
+ {fr:"la casquette",ru:"кепка",reading:"[ля каскэт]",topic:"Аксессуары"},
+ {fr:"le sac",ru:"сумка",reading:"[лё сак]",topic:"Аксессуары"},
+ {fr:"la ceinture",ru:"ремень",reading:"[ля сэнтюр]",topic:"Аксессуары"},
+ {fr:"l’écharpe",ru:"шарф",reading:"[лэшарп]",topic:"Аксессуары"},
+ {fr:"les lunettes",ru:"очки",reading:"[ле люнэт]",topic:"Аксессуары"}
+];
+// Safe local lexicon: automatic article only when known.
+// French gender cannot be inferred reliably from spelling alone.
+const LEXICON = {
+"robe":"la","jupe":"la","chemise":"la","veste":"la","casquette":"la","ceinture":"la",
+"tête":"la","bouche":"la","main":"la","jambe":"la","cheville":"la","peau":"la","gorge":"la","hanche":"la",
+"pantalon":"le","pull":"le","manteau":"le","chapeau":"le","sac":"le","visage":"le","front":"le","nez":"le","bras":"le","ventre":"le","genou":"le","pied":"le","dos":"le","cou":"le","corps":"le","poignet":"le","talon":"le","pouce":"le",
+"écharpe":"l’","épaule":"l’","oreille":"l’","œil":"l’",
+"chaussures":"les","baskets":"les","gants":"les","sandales":"les","lunettes":"les","chaussettes":"les","bottes":"les","cheveux":"les","yeux":"les","lèvres":"les","dents":"les"
+};
+let cards=JSON.parse(localStorage.getItem("frcards_v3")||"null") || DEFAULT.map(x=>({...x,known:0,missed:0}));
+let current=null, hard=false;
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem("frcards_v3",JSON.stringify(cards));refresh();}
+function stripArticle(s){return s.trim().replace(/^(le|la|les|l['’])\s*/i,"").trim();}
+function hasArticle(s){return /^(le|la|les)\s+|^l['’]/i.test(s.trim());}
+function normalizeArticle(){
+ let el=$("fr"), raw=el.value.trim(); if(!raw)return;
+ if(hasArticle(raw)){status("Артикль уже указан ✓","good"); return;}
+ let key=stripArticle(raw).toLowerCase(), a=LEXICON[key];
+ if(a){ el.value=(a==="l’"?a+raw:a+" "+raw); status("Артикль добавлен: "+a+" ✓","good"); }
+ else status("Я не буду угадывать род этого слова. Проверь его в словаре или через ChatGPT, затем добавь le / la / l’ / les.","bad");
+}
+function status(t,c=""){ $("articleStatus").textContent=t; $("articleStatus").className="status "+c; }
+function refresh(){
+ let topics=[...new Set(cards.map(c=>c.topic).filter(Boolean))].sort();
+ $("topics").innerHTML=topics.map(t=>`<option value="${esc(t)}">`).join("");
+ let old=$("filter").value; $("filter").innerHTML='<option value="">Все темы</option>'+topics.map(t=>`<option>${esc(t)}</option>`).join(""); $("filter").value=old;
+ $("stats").textContent=`Карточек: ${cards.length} · сложных: ${cards.filter(c=>(c.missed||0)>(c.known||0)).length}`;
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function pool(){let a=cards.filter(c=>!$("filter").value||c.topic===$("filter").value);if(hard)a=a.filter(c=>(c.missed||0)>(c.known||0));return a;}
+function next(){
+ let a=pool(); if(!a.length){$("front").textContent="Нет карточек для этого фильтра";current=null;return;}
+ let weighted=[]; a.forEach(c=>{let w=1+Math.max(0,(c.missed||0)-(c.known||0));for(let i=0;i<Math.min(w,6);i++)weighted.push(c)});
+ current=weighted[Math.floor(Math.random()*weighted.length)]; render();
+}
+function render(){
+ let d=$("direction").value, frFirst=d==="fr-ru";
+ $("front").textContent=frFirst?current.fr:current.ru;
+ $("frontReading").textContent=frFirst?current.reading:"";
+ $("back").textContent=frFirst?current.ru:current.fr;
+ $("backReading").textContent=frFirst?"":current.reading;
+ $("answer").classList.add("hidden");
+}
+function speak(text){if(!("speechSynthesis" in window))return alert("На этом устройстве озвучивание недоступно.");let u=new SpeechSynthesisUtterance(text);u.lang="fr-FR";speechSynthesis.cancel();speechSynthesis.speak(u);}
+$("articleBtn").onclick=normalizeArticle;
+$("fr").addEventListener("blur",()=>{ if($("fr").value.trim()&&!hasArticle($("fr").value)) normalizeArticle(); });
+$("speakInput").onclick=()=>{if($("fr").value.trim())speak($("fr").value.trim())};
+$("translateBtn").onclick=async()=>{
+ let q=$("fr").value.trim(); if(!q)return;
+ try{
+  let r=await fetch("https://api.mymemory.translated.net/get?q="+encodeURIComponent(q)+"&langpair=fr|ru");
+  let j=await r.json(); if(j?.responseData?.translatedText){$("ru").value=j.responseData.translatedText;status("Перевод заполнен. Проверь значение перед сохранением ✓","good")}else throw 0;
+ }catch(e){status("Автоперевод сейчас недоступен. Можно нажать «Спросить ChatGPT».","bad")}
+};
+$("chatBtn").onclick=()=>{
+ let q=$("fr").value.trim(); if(!q)return;
+ let prompt=`Французское слово: ${q}. Дай русский перевод, правильный определённый артикль (le/la/l’/les), простое чтение русскими буквами и один короткий пример уровня A1.`;
+ window.open("https://chatgpt.com/?q="+encodeURIComponent(prompt),"_blank");
+};
+$("addBtn").onclick=()=>{
+ normalizeArticle();
+ let fr=$("fr").value.trim(),ru=$("ru").value.trim(),reading=$("reading").value.trim(),topic=$("topic").value.trim()||"Без темы";
+ if(!fr||!ru){$("msg").innerHTML='<div class="status bad">Нужны французское слово и перевод.</div>';return}
+ cards.push({fr,ru,reading,topic,known:0,missed:0});save();$("msg").innerHTML='<div class="status good">Карточка добавлена ✓</div>';
+ ["fr","ru","reading"].forEach(x=>$(x).value="");
+};
+$("shuffle").onclick=next;$("show").onclick=()=>$("answer").classList.remove("hidden");$("card").onclick=()=>$("answer").classList.toggle("hidden");
+$("hardOnly").onclick=()=>{hard=!hard;$("hardOnly").textContent=hard?"⭐ Сложные: ВКЛ":"⭐ Только сложные";next()};
+$("yes").onclick=()=>{if(current){current.known=(current.known||0)+1;save();next()}};
+$("no").onclick=()=>{if(current){current.missed=(current.missed||0)+1;save();next()}};
+$("speakCard").onclick=()=>{if(current)speak(current.fr)};
+$("direction").onchange=()=>{if(current)render()};$("filter").onchange=next;
+refresh();
+if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+</script>
+</body></html>

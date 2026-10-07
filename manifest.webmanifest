@@ -1,0 +1,9 @@
+{
+  "name": "Mes cartes de français",
+  "short_name": "Mes cartes",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fbf8f5",
+  "theme_color": "#f7efe8",
+  "description": "Французские карточки по темам"
+}
